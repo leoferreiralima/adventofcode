@@ -1,19 +1,9 @@
 const std = @import("std");
 
 const X_MAS = "MAS";
-const DIRECTIONS = [_][2]i8{
-    .{ 0, 1 }, // UP
-    .{ 0, -1 }, // DOWN
-    .{ 1, 0 }, // RIGHT
-    .{ -1, 0 }, // LEFT
-    .{ 1, 1 }, // UP RIGHT
-    .{ 1, -1 }, // DOWN RIGHT
-    .{ -1, 1 }, // UP LEFT
-    .{ -1, -1 }, // DOWN LEFT
-};
 
 pub fn main() !void {
-    const file = @embedFile("test");
+    const file = @embedFile("input");
 
     var linesIterator = std.mem.splitSequence(u8, file, "\n");
 
@@ -31,57 +21,34 @@ pub fn main() !void {
         try result.append(try repeat('.', line.len, &allocator));
     }
 
-    var backtrack = std.ArrayList([2]usize).init(allocator);
-    defer backtrack.deinit();
-
     var count: usize = 0;
 
     for (lines.items, 0..) |line, row| {
         for (line, 0..) |char, column| {
-            if (char == 'X') {
-                count += try countXmas(row, column, &lines.items, &backtrack);
+            if (char == 'A') {
+                count += try countXmas(row, column, &lines.items);
             }
         }
     }
 
     std.debug.print("{}\n", .{count});
-
-    for (backtrack.items) |item| {
-        const row = item[0];
-        const column = item[1];
-        result.items[row][column] = lines.items[row][column];
-    }
-
-    for (result.items) |line| {
-        std.debug.print("{s}\n", .{line});
-    }
 }
 
-fn countXmas(row: usize, column: usize, lines: *[][]const u8, backtrack: *std.ArrayList([2]usize)) !usize {
-    var count: usize = 0;
-    for (DIRECTIONS) |dir| {
-        var i: usize = 0;
-        var r: isize = @intCast(row);
-        var c: isize = @intCast(column);
+fn countXmas(row: usize, column: usize, linesPtr: *[][]const u8) !usize {
+    const r: isize = @intCast(row);
+    const c: isize = @intCast(column);
 
-        while (isInBounds(r, c, lines) and X_MAS[i] == lines.*[@intCast(r)][@intCast(c)]) : ({
-            c += dir[0];
-            r += dir[1];
-            i += 1;
-        }) {
-            try backtrack.append([_]usize{ @intCast(r), @intCast(c) });
-        }
+    const lines = linesPtr.*;
 
-        if (i == X_MAS.len) {
-            count += 1;
-        } else {
-            while (i > 0) : (i -= 1) {
-                _ = backtrack.pop();
-            }
-        }
-    }
+    const upperLeft: u8 = if (isInBounds(r - 1, c - 1, linesPtr)) lines[@intCast(r - 1)][@intCast(c - 1)] else 0;
+    const downLeft: u8 = if (isInBounds(r + 1, c - 1, linesPtr)) lines[@intCast(r + 1)][@intCast(c - 1)] else 0;
+    const upperRight: u8 = if (isInBounds(r - 1, c + 1, linesPtr)) lines[@intCast(r - 1)][@intCast(c + 1)] else 0;
+    const downRight: u8 = if (isInBounds(r + 1, c + 1, linesPtr)) lines[@intCast(r + 1)][@intCast(c + 1)] else 0;
 
-    return count;
+    const hasDiagonal1 = (upperLeft == X_MAS[0] and downRight == X_MAS[2]) or (upperLeft == X_MAS[2] and downRight == X_MAS[0]);
+    const hasDiagonal2 = (upperRight == X_MAS[0] and downLeft == X_MAS[2]) or (upperRight == X_MAS[2] and downLeft == X_MAS[0]);
+
+    return if (hasDiagonal1 and hasDiagonal2) 1 else 0;
 }
 
 fn isInBounds(row: isize, column: isize, lines: *[][]const u8) bool {
